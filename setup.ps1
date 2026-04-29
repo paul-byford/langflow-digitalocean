@@ -36,9 +36,16 @@ function Set-EnvValue {
     $content = [System.Text.Encoding]::UTF8.GetString($bytes)
     # Normalise to LF.
     $content = $content -replace "`r`n", "`n" -replace "`r", "`n"
-    # Replace the matching key=value line.
-    $content = [regex]::Replace($content, "(?m)^${Key}=.*$", "${Key}=${Value}")
-    [System.IO.File]::WriteAllText($EnvFile, $content, $utf8NoBom)
+    # Replace the matching key=value line using a simple line-by-line loop.
+    # Avoids [regex]::Replace whose replacement string interprets $n and ${name}
+    # as backreferences, which can corrupt content when values contain $ or \.
+    $lines = $content -split "`n"
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -cmatch "^$([regex]::Escape($Key))=") {
+            $lines[$i] = "$Key=$Value"
+        }
+    }
+    [System.IO.File]::WriteAllText($EnvFile, ($lines -join "`n"), $utf8NoBom)
 }
 
 function New-RandomPassword {
@@ -128,11 +135,14 @@ if (-not (Test-Path $EnvFile)) {
         exit 1
     }
     Copy-Item $ExampleFile $EnvFile
-    # Normalise to LF + no BOM immediately so bash can source it on the server.
+    # Normalise to LF + no BOM using raw bytes, consistent with Set-EnvValue.
     $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
-    $raw = [System.IO.File]::ReadAllText($EnvFile) -replace "`r`n", "`n" -replace "`r", "`n"
-    if ($raw.StartsWith([char]0xFEFF)) { $raw = $raw.Substring(1) }
-    [System.IO.File]::WriteAllText($EnvFile, $raw, $utf8NoBom)
+    $initBytes = [System.IO.File]::ReadAllBytes($EnvFile)
+    if ($initBytes.Length -ge 3 -and $initBytes[0] -eq 0xEF -and $initBytes[1] -eq 0xBB -and $initBytes[2] -eq 0xBF) {
+        $initBytes = $initBytes[3..($initBytes.Length - 1)]
+    }
+    $initRaw = [System.Text.Encoding]::UTF8.GetString($initBytes) -replace "`r`n", "`n" -replace "`r", "`n"
+    [System.IO.File]::WriteAllText($EnvFile, $initRaw, $utf8NoBom)
     Write-Info "Created .env from .env.example."
 }
 
