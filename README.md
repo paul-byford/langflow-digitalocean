@@ -16,8 +16,65 @@ Deploy Langflow on DigitalOcean with automatic HTTPS in under 10 minutes.
 ## Prerequisites
 
 - A DigitalOcean Droplet running Ubuntu 22.04 or 24.04 (minimum 2 GB RAM / 1 vCPU — 4 GB recommended for heavier use)
-- SSH access to the Droplet
-- A domain name is **optional**. You can use the Droplet's bare IP address to get started immediately; the setup script will configure a self-signed certificate. Point a domain at the server later and re-run the script to get a trusted certificate.
+- An SSH key pair on your local machine (see below)
+- A domain name is **optional**. You can use the Droplet's bare IP address; the setup script converts it to a free [sslip.io](https://sslip.io) subdomain so you still get a trusted HTTPS certificate with no DNS configuration.
+
+---
+
+## SSH key setup
+
+### Do you already have a key?
+
+**Windows** — open PowerShell and run:
+
+```powershell
+Test-Path "$env:USERPROFILE\.ssh\id_ed25519"
+```
+
+**Linux / macOS:**
+
+```bash
+ls ~/.ssh/id_ed25519
+```
+
+If the file exists you already have a key and can skip to the next step.
+
+### Generate a new key (if you don't have one)
+
+**Windows** (PowerShell), **Linux**, and **macOS** all ship with OpenSSH. Run:
+
+```bash
+ssh-keygen -t ed25519
+```
+
+Accept the default path and set a passphrase when prompted. This creates two files:
+
+| File | Purpose |
+|------|---------|
+| `id_ed25519` | Private key — keep this secret, never share it |
+| `id_ed25519.pub` | Public key — this is what you give to servers |
+
+On Windows these files are saved to `C:\Users\<your-username>\.ssh\`.
+
+### Add your public key to DigitalOcean
+
+**When creating the Droplet:** in the *Authentication* section choose **SSH Key**, click **New SSH Key**, and paste the contents of your `id_ed25519.pub` file.
+
+To print the public key so you can copy it:
+
+```powershell
+# Windows
+Get-Content "$env:USERPROFILE\.ssh\id_ed25519.pub"
+```
+
+```bash
+# Linux / macOS
+cat ~/.ssh/id_ed25519.pub
+```
+
+If you already have a Droplet without your key added, you can add it retroactively via **Settings > Security > SSH Keys** in the DigitalOcean control panel, then copy it to the Droplet with `ssh-copy-id`.
+
+> **Important:** `setup.ps1` connects to the Droplet using your SSH key. If the key was not added to the Droplet at creation time the script will fail at the connection step.
 
 ---
 

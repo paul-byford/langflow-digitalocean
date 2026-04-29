@@ -254,9 +254,11 @@ while ! all_healthy; do
     docker compose ps
     break
   fi
+  printf "\r  Elapsed: %ds / %ds" "${ELAPSED}" "${TIMEOUT}"
   sleep "${INTERVAL}"
   ELAPSED=$((ELAPSED + INTERVAL))
 done
+printf "\r%*s\r" 40 ""  # clear the elapsed line
 
 if all_healthy; then
   info "All services are healthy."
