@@ -1,0 +1,8 @@
+# Reverse proxy for Langflow with automatic HTTPS via Caddy.
+# setup.sh rewrites this file at deploy time:
+#   domain  -> automatic Let's Encrypt certificate
+#   bare IP -> self-signed certificate via "tls internal"
+
+{$DOMAIN} {
+    reverse_proxy langflow:7860
+}
